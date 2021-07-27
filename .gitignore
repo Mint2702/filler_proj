@@ -3,3 +3,5 @@
 .vscode/
 *.cpython*
 .DS_Store
+*mp4
+*jpg
