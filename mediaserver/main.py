@@ -4,7 +4,7 @@ from fastapi import FastAPI
 def create_app() -> FastAPI:
     app = FastAPI()
 
-    from core.routes.file_uploder import router as file_uploder_router
+    from core.file_uploder import router as file_uploder_router
 
     app.include_router(file_uploder_router, tags=["File uploader"])
 
