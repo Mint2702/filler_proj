@@ -9,7 +9,9 @@ from .settings import settings
 
 async def create_pool():
     global conn
-    conn = await aioredis.create_redis_pool(settings.redis_url)
+    conn = await aioredis.from_url(
+        settings.redis_url, encoding="utf-8", decode_responses=True
+    )
 
 
 asyncio.run(create_pool())
@@ -21,7 +23,7 @@ async def close_redis():
 
 
 async def load_data(file_id: str) -> Dict[str, Union[str, int, None]]:
-    file = await conn.get(file_id, encoding="utf-8")
+    file = await conn.get(file_id)
     return ujson.loads(file)
 
 

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, File, Header
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi import APIRouter, File
+from fastapi.responses import JSONResponse, FileResponse, Response
 import uuid
 import os
 from loguru import logger
@@ -16,7 +16,6 @@ router = APIRouter()
 
 VIDEO_ROUTE = "videos/"
 IMAGE_ROUTE = "images/"
-OTHER_ROUTE = "other/"
 
 
 @router.post("/load_file", status_code=201, responses={409: {"model": str}})
@@ -29,24 +28,27 @@ async def load_file(
     file_extension = file.file_name.split(".")[-1]
 
     type = utils.get_type(file_extension)
-    print(type)
+    if type:
+        await redis_.dump_data(
+            file_id,
+            {
+                "file_name": file.file_name,
+                "file_extension": file_extension,
+                "file_size": file.file_size,
+                "record_dt": str(datetime.now().isoformat()),
+                "received_bytes": 0,
+                "status": "created",
+                "type": type,
+            },
+        )
 
-    await redis_.dump_data(
-        file_id,
-        {
-            "file_name": file.file_name,
-            "file_extension": file_extension,
-            "file_size": file.file_size,
-            "record_dt": str(datetime.now().isoformat()),
-            "received_bytes": 0,
-            "status": "created",
-            "type": type,
-        },
-    )
+        logger.info(f"Was created {file.file_name}")
 
-    logger.info(f"Was created {file.file_name}")
+        return {"file_id": file_id, "type": type}
 
-    return {"file_id": file_id, "type": type}
+    message = "File with unsupported type passed"
+    logger.warning(message)
+    return JSONResponse(status_code=409, content={"message": message})
 
 
 @router.put("/load_file/{file_id}", status_code=200, responses={409: {"model": str}})
@@ -64,10 +66,8 @@ async def upload(
 
     if file["type"] == "video":
         second_dir = VIDEO_ROUTE
-    elif file["type"] == "image":
-        second_dir = IMAGE_ROUTE
     else:
-        second_dir = OTHER_ROUTE
+        second_dir = IMAGE_ROUTE
 
     if file["status"] == "done":
         return {"message": "Already uploaded"}
@@ -99,7 +99,7 @@ async def upload(
 
 
 @router.get("/get_image", status_code=200, responses={404: {"model": str}})
-def get_file(file_id: str):
+async def get_file(file_id: str):
     """ Searches image with specified id and returns it """
 
     files_in_dir = os.listdir(IMAGE_ROUTE)
@@ -114,33 +114,28 @@ def get_file(file_id: str):
     return FileResponse(dir)
 
 
-@router.get("/get_video", status_code=200, responses={404: {"model": str}})
-def get_file(file_id: str, range: str = Header(None)):
+@router.get("/get_video")
+async def get_video(file_id: str, range: str):
     """ Searches video with specified id and returns it """
 
     files_in_dir = os.listdir(VIDEO_ROUTE)
     files_in_dir = [file[:-4] for file in files_in_dir]
 
-    video_path = Path(f"{VIDEO_ROUTE}{file_id}.mp4")
+    file_name = f"{file_id}.mp4"
     if files_in_dir.count(file_id) != 1:
         message = "File with given id is not found"
         logger.warning(message)
         return JSONResponse(status_code=404, content={"message": message})
 
-    # start, end = range.replace("bytes=", "").split("-")
-    # start = int(start)
-    # end = int(end) if end else start + CHUNK_SIZE
-    # with open(video_path, "rb") as video:
-    #     video.seek(start)
-    #     data = video.read(end - start)
-    #     filesize = str(video_path.stat().st_size)
-    #     headers = {
-    #         'Content-Range': f'bytes {str(start)}-{str(end)}/{filesize}',
-    #         'Accept-Ranges': 'bytes'
-    #     }
-    #     return Response(data, status_code=206, headers=headers, media_type="video/mp4")
+    start, end = range.split("-")
+    start = int(start)
+    end = int(end)
 
-    # file_like = open(video_path, mode="rb")
-    # return StreamingResponse(file_like, media_type="video/mp4")
-
-    return FileResponse(video_path)
+    data = await storage.get(file_name, VIDEO_ROUTE, start, end)
+    filesize = str(Path(f"{VIDEO_ROUTE}{file_name}").stat().st_size)
+    headers = {
+        "Content-Range": f"bytes {str(start)}-{str(end)}/{filesize}",
+        "Accept-Ranges": "bytes",
+        "Length": f"{filesize}",
+    }
+    return Response(data, status_code=206, headers=headers, media_type="video/mp4")

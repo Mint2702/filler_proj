@@ -6,3 +6,5 @@ loguru
 ujson
 aiofile
 aioredis
+python-multipart
+aiofiles

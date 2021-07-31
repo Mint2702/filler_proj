@@ -1,7 +1,7 @@
 FILE_EXTENSIONS = {"video": ["mp4"], "image": ["jpeg", "jpg"]}
 
 
-def get_type(extension: str):
+def get_type(extension: str) -> str or bool:
     """ Returns if the file is video, image or some other type """
 
     for type in FILE_EXTENSIONS.items():
@@ -10,4 +10,4 @@ def get_type(extension: str):
             if ext == extension:
                 return type[0]
 
-    return "other"
+    return False
