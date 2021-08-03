@@ -2,7 +2,12 @@ from fastapi import FastAPI
 
 
 def create_app() -> FastAPI:
-    app = FastAPI()
+    from core.settings import settings
+
+    if settings.dev:
+        app = FastAPI()
+    else:
+        app = FastAPI(root_path="/api/mediaserver")
 
     from core.file_uploder import router as file_uploder_router
 
