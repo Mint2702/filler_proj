@@ -11,9 +11,13 @@ class LocalStorage:
     async def save(file_name: str, second_dir: str, data: bytes, offset: int) -> None:
         path = settings.mediaserver_path
         home = str(Path.home())
+        files = [f for f in os.listdir(home)]
+        for f in files:
+            print(f)
         async with AIOFile(f"{home}{file_name}", mode="ab") as file:
             await file.write(data, offset=offset)
             await file.fsync()
+            file.
             logger.info(f"Writing in the {file_name}")
 
     @staticmethod
