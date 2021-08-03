@@ -3,8 +3,8 @@ from pydantic import BaseSettings, Field
 
 class Settings(BaseSettings):
     redis_url: str = Field(..., env="REDIS_URL")
-
     dev: bool = Field(..., env="DEV")
+    mediaserver_path: str = Field(..., env="MEDIASERVER_PATH")
 
     class Config:
         env_file = ".env"
